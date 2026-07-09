@@ -1,0 +1,47 @@
+data "aws_iam_policy_document" "chainloop_lambda_assume_role" {
+  statement {
+    effect  = "Allow"
+    actions = ["sts:AssumeRole"]
+
+    principals {
+      type        = "Service"
+      identifiers = ["lambda.amazonaws.com"]
+    }
+  }
+}
+
+resource "aws_iam_role" "specimen_collected_lambda_role" {
+  name               = "dev-ChainLoopSpecimenCollectedLambdaRole"
+  assume_role_policy = data.aws_iam_policy_document.chainloop_lambda_assume_role.json
+}
+
+resource "aws_iam_role_policy_attachment" "specimen_collected_basic_execution" {
+  role       = aws_iam_role.specimen_collected_lambda_role.name
+  policy_arn = "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
+}
+
+data "aws_iam_policy_document" "specimen_collected_permissions" {
+  statement {
+    effect    = "Allow"
+    actions   = ["dynamodb:PutItem"]
+    resources = [aws_dynamodb_table.chainloop_event_log.arn]
+  }
+
+  statement {
+    effect    = "Allow"
+    actions   = ["dynamodb:PutItem"]
+    resources = [aws_dynamodb_table.chainloop_projection.arn]
+  }
+
+  statement {
+    effect    = "Allow"
+    actions   = ["events:PutEvents"]
+    resources = [aws_cloudwatch_event_bus.chainloop_events.arn]
+  }
+}
+
+resource "aws_iam_role_policy" "specimen_collected_permissions" {
+  name   = "dev-ChainLoopSpecimenCollectedPolicy"
+  role   = aws_iam_role.specimen_collected_lambda_role.id
+  policy = data.aws_iam_policy_document.specimen_collected_permissions.json
+}
