@@ -46,3 +46,27 @@ resource "aws_lambda_function" "courier_accepted" {
     }
   }
 }
+data "archive_file" "courier_status_update_zip" {
+  type        = "zip"
+  source_dir  = "../../../ChainLoop/lambdas/courier-status-update"
+  output_path = "${path.root}/build/dev-courierstatusupdatelambda.zip"
+}
+
+resource "aws_lambda_function" "courier_status_update" {
+  function_name    = "dev-CourierStatusUpdateLambda"
+  role             = aws_iam_role.courier_status_update_lambda_role.arn
+  handler          = "lambda_function.lambda_handler"
+  runtime          = "python3.14"
+  memory_size      = 128
+  timeout          = 3
+  filename         = data.archive_file.courier_status_update_zip.output_path
+  source_code_hash = data.archive_file.courier_status_update_zip.output_base64sha256
+
+  environment {
+    variables = {
+      EVENT_LOG_TABLE_NAME  = aws_dynamodb_table.chainloop_event_log.name
+      PROJECTION_TABLE_NAME = aws_dynamodb_table.chainloop_projection.name
+      EVENT_BUS_NAME        = aws_cloudwatch_event_bus.chainloop_events.name
+    }
+  }
+}
