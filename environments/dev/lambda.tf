@@ -94,3 +94,27 @@ resource "aws_lambda_function" "lab_verified" {
     }
   }
 }
+data "archive_file" "sla_checker_zip" {
+  type        = "zip"
+  source_dir  = "../../../ChainLoop/lambdas/sla-checker"
+  output_path = "${path.root}/build/dev-slacheckerlambda.zip"
+}
+
+resource "aws_lambda_function" "sla_checker" {
+  function_name    = "dev-SlaCheckerLambda"
+  role             = aws_iam_role.sla_checker_lambda_role.arn
+  handler          = "lambda_function.lambda_handler"
+  runtime          = "python3.14"
+  memory_size      = 128
+  timeout          = 10
+  filename         = data.archive_file.sla_checker_zip.output_path
+  source_code_hash = data.archive_file.sla_checker_zip.output_base64sha256
+
+  environment {
+    variables = {
+      PROJECTION_TABLE_NAME = aws_dynamodb_table.chainloop_projection.name
+      SNS_TOPIC_ARN         = aws_sns_topic.chainloop_alerts.arn
+      EVENT_BUS_NAME        = aws_cloudwatch_event_bus.chainloop_events.name
+    }
+  }
+}
