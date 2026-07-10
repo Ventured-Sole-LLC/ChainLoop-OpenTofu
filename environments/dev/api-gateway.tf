@@ -54,3 +54,25 @@ resource "aws_lambda_permission" "specimen_collected_apigw" {
 output "dev_chainloop_api_invoke_url" {
   value = aws_apigatewayv2_api.chainloop_api.api_endpoint
 }
+resource "aws_apigatewayv2_integration" "courier_accepted_integration" {
+  api_id                 = aws_apigatewayv2_api.chainloop_api.id
+  integration_type       = "AWS_PROXY"
+  integration_uri        = aws_lambda_function.courier_accepted.invoke_arn
+  payload_format_version = "2.0"
+}
+
+resource "aws_apigatewayv2_route" "courier_accepted_route" {
+  api_id             = aws_apigatewayv2_api.chainloop_api.id
+  route_key          = "POST /specimens/accept"
+  target             = "integrations/${aws_apigatewayv2_integration.courier_accepted_integration.id}"
+  authorization_type = "JWT"
+  authorizer_id      = aws_apigatewayv2_authorizer.chainloop_cognito_authorizer.id
+}
+
+resource "aws_lambda_permission" "courier_accepted_apigw" {
+  statement_id  = "AllowAPIGatewayInvokeCourierAccepted"
+  action        = "lambda:InvokeFunction"
+  function_name = aws_lambda_function.courier_accepted.function_name
+  principal     = "apigateway.amazonaws.com"
+  source_arn    = "${aws_apigatewayv2_api.chainloop_api.execution_arn}/*/*"
+}
